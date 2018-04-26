@@ -27,15 +27,15 @@ class ActWrapper(object):
         with cur_graph.as_default():
             act = deepq.build_act(**act_params)
             sess = tf.Session(graph=cur_graph)
-            sess.__enter__()
-            with tempfile.TemporaryDirectory() as td:
-                arc_path = os.path.join(td, "packed.zip")
-                with open(arc_path, "wb") as f:
-                    f.write(model_data)
+            with sess.as_default():
+                with tempfile.TemporaryDirectory() as td:
+                    arc_path = os.path.join(td, "packed.zip")
+                    with open(arc_path, "wb") as f:
+                        f.write(model_data)
 
-                zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-                U.load_state(os.path.join(td, "model"))
-            return ActWrapper(act, act_params), cur_graph, sess
+                    zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
+                    U.load_state(os.path.join(td, "model"))
+        return ActWrapper(act, act_params), cur_graph, sess
 
     @staticmethod
     def load_for_multiple_nets(path):
@@ -45,15 +45,15 @@ class ActWrapper(object):
         with cur_graph.as_default():
             act = deepq.build_act(**act_params)
             sess = tf.Session(graph=cur_graph)
-            sess.__enter__()
-            with tempfile.TemporaryDirectory() as td:
-                arc_path = os.path.join(td, "packed.zip")
-                with open(arc_path, "wb") as f:
-                    f.write(model_data)
+            with sess.as_default():
+                with tempfile.TemporaryDirectory() as td:
+                    arc_path = os.path.join(td, "packed.zip")
+                    with open(arc_path, "wb") as f:
+                        f.write(model_data)
 
-                zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-                U.load_state(os.path.join(td, "model"))
-            return ActWrapper(act, act_params), cur_graph, sess
+                    zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
+                    U.load_state(os.path.join(td, "model"))
+        return ActWrapper(act, act_params), cur_graph, sess
 
     @staticmethod
     def load(path):
@@ -63,14 +63,14 @@ class ActWrapper(object):
         with cur_graph.as_default():
             act = deepq.build_act(**act_params)
             sess = tf.Session(graph=cur_graph)
-            sess.__enter__()
-            with tempfile.TemporaryDirectory() as td:
-                arc_path = os.path.join(td, "packed.zip")
-                with open(arc_path, "wb") as f:
-                    f.write(model_data)
+            with sess.as_default():
+                with tempfile.TemporaryDirectory() as td:
+                    arc_path = os.path.join(td, "packed.zip")
+                    with open(arc_path, "wb") as f:
+                        f.write(model_data)
 
-                zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-                U.load_state(os.path.join(td, "model"))
+                    zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
+                    U.load_state(os.path.join(td, "model"))
             return ActWrapper(act, act_params)
 
     @staticmethod
@@ -95,6 +95,29 @@ class ActWrapper(object):
 
     def __call__(self, *args, **kwargs):
         return self._act(*args, **kwargs)
+
+    def save_with_sess(self, sess, path=None):
+        """Save model to a pickle located at `path`"""
+        if path is None:
+            path = os.path.join(logger.get_dir(), "model.pkl")
+
+        with tempfile.TemporaryDirectory() as td:
+            with sess.as_default():
+                # print("Saving state now")
+                # for var in tf.trainable_variables():
+                #     print('normal variable: ' + var.op.name)
+                U.save_state(os.path.join(td, "model"))
+            arc_name = os.path.join(td, "packed.zip")
+            with zipfile.ZipFile(arc_name, 'w') as zipf:
+                for root, dirs, files in os.walk(td):
+                    for fname in files:
+                        file_path = os.path.join(root, fname)
+                        if file_path != arc_name:
+                            zipf.write(file_path, os.path.relpath(file_path, td))
+            with open(arc_name, "rb") as f:
+                model_data = f.read()
+        with open(path, "wb") as f:
+            cloudpickle.dump((model_data, self._act_params), f)
 
     def save(self, path=None):
         """Save model to a pickle located at `path`"""
@@ -162,7 +185,8 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-          ep_mean_length=100):
+          ep_mean_length=100,
+          scope="deepq_train"):
     """Train a deepq model.
 
     Parameters
@@ -246,7 +270,8 @@ def learn(env,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         grad_norm_clipping=10,
-        param_noise=param_noise
+        param_noise=param_noise,
+        scope=scope
     )
 
     act_params = {
@@ -303,7 +328,8 @@ def learn(env,
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
-            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            with sess.as_default():
+                action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
@@ -325,14 +351,16 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                with sess.as_default():
+                    td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
-                update_target()
+                with sess.as_default():
+                    update_target()
 
             mean_ep_reward = round(np.mean(episode_rewards[(-ep_mean_length - 1):-1]), 1)
             num_episodes = len(episode_rewards)
@@ -349,13 +377,15 @@ def learn(env,
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_ep_reward))
-                    U.save_state(model_file)
+                    with sess.as_default():
+                        U.save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_ep_reward
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-            U.load_state(model_file)
+            with sess.as_default():
+                U.load_state(model_file)
 
     return act
 
@@ -579,7 +609,7 @@ def learn_multiple_nets(env,
 
         return act
 
-def learn(env,
+def learn_and_save(env,
           q_func,
           lr=5e-4,
           max_timesteps=100000,
@@ -600,7 +630,9 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-          ep_mean_length=100):
+          ep_mean_length=100,
+          scope="deepq_train",
+          path_for_save=None):
     """Train a deepq model.
 
     Parameters
@@ -684,7 +716,8 @@ def learn(env,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         grad_norm_clipping=10,
-        param_noise=param_noise
+        param_noise=param_noise,
+        scope=scope
     )
 
     act_params = {
@@ -715,6 +748,9 @@ def learn(env,
     U.initialize()
     update_target()
 
+    # for var in tf.trainable_variables():
+    #     print('normal variable: ' + var.op.name)
+
     episode_rewards = [0.0]
     saved_mean_reward = None
     obs = env.reset()
@@ -741,7 +777,8 @@ def learn(env,
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
-            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            with sess.as_default():
+                action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
@@ -751,11 +788,13 @@ def learn(env,
 
             episode_rewards[-1] += rew
             if done:
+                # print("Reset env")
                 obs = env.reset()
                 episode_rewards.append(0.0)
                 reset = True
 
             if t > learning_starts and t % train_freq == 0:
+                # print("Minimize error")
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if prioritized_replay:
                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
@@ -763,14 +802,17 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                with sess.as_default():
+                    td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
-                update_target()
+                with sess.as_default():
+                    # print("update target")
+                    update_target()
 
             mean_ep_reward = round(np.mean(episode_rewards[(-ep_mean_length - 1):-1]), 1)
             num_episodes = len(episode_rewards)
@@ -781,6 +823,10 @@ def learn(env,
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
 
+            # print("Checkpoint")
+            # for var in tf.trainable_variables():
+            #     print('normal variable: ' + var.op.name)
+
             if (checkpoint_freq is not None and t > learning_starts and
                     num_episodes > ep_mean_length and t % checkpoint_freq == 0):
                 if saved_mean_reward is None or mean_ep_reward > saved_mean_reward:
@@ -788,6 +834,7 @@ def learn(env,
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_ep_reward))
                     with sess.as_default():
+                        # print("Saving current state")
                         U.save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_ep_reward
@@ -795,6 +842,14 @@ def learn(env,
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
             with sess.as_default():
+                # print("Loading old state")
                 U.load_state(model_file)
+   
+    # for var in tf.global_variables():
+    #     print('all variables: ' + var.op.name)
+    # for var in tf.trainable_variables():
+    #     print('normal variable: ' + var.op.name)
 
+    if path_for_save is not None:
+        act.save_with_sess(sess, path=path_for_save)
     return act
