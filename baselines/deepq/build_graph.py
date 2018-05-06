@@ -155,9 +155,9 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
         chose_random = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
-        print("chose_random: " + str(chose_random))
-        print("random_actions: " + str(random_actions))
-        print("deterministic_actions: " + str(deterministic_actions))
+        # print("chose_random: " + str(chose_random))
+        # print("random_actions: " + str(random_actions))
+        # print("deterministic_actions: " + str(deterministic_actions))
         stochastic_actions = tf.where(chose_random, random_actions, deterministic_actions)
 
         output_actions = tf.cond(stochastic_ph, lambda: stochastic_actions, lambda: deterministic_actions)
