@@ -3,9 +3,7 @@ from baselines.deepq.build_graph import build_act, build_train  # noqa
 # from baselines.deepq.simple import learn, load  # noqa
 from baselines.deepq.simple_conservative import learn, load, load_for_multiple_nets, \
     learn_multiple_nets, learn_and_save, load_with_scope, \
-    load_for_multiple_nets_with_scope, learn_and_save_for_retrain, \
-    load_with_scope_retrain_for_play, retrain_and_save, load_with_scope_for_retrain
-    # noqa
+    load_for_multiple_nets_with_scope
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer  # noqa
 
 def wrap_atari_dqn(env):
