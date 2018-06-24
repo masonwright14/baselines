@@ -884,12 +884,35 @@ def print_old_and_new_weights(scope_old, scope_new, sess):
     new_value = sess.run(new_weights)
     print(new_value)
 
-    copy_into_new_weights = new_weights.assign(old_weights)
-    sess.run(copy_into_new_weights)
+    # copy_into_new_weights = new_weights.assign(old_weights)
+    # sess.run(copy_into_new_weights)
 
-    new_value_updated = sess.run(new_weights)
-    print("updated value of new weights:")
-    print(new_value_updated)
+    # new_value_updated = sess.run(new_weights)
+    # print("updated value of new weights:")
+    # print(new_value_updated)
+
+def overwrite_new_net_with_old(scope_old, scope_new, sess):
+    net_name_suffixes = [
+        "/q_func/fully_connected/weights:0",
+        "/q_func/fully_connected/biases:0",
+        "/q_func/fully_connected_1/weights:0",
+        "/q_func/fully_connected_1/biases:0",
+        "/q_func/fully_connected_2/weights:0",
+        "/q_func/fully_connected_2/biases:0"
+    ]
+
+    for suffix in net_name_suffixes:
+        old_var_name = scope_old + suffix
+        new_var_name = scope_new + suffix
+        old_var = [v for v in tf.global_variables() if v.name == old_var_name][0]
+        new_var = [v for v in tf.global_variables() if v.name == new_var_name][0]
+        copy_var = new_var.assign(old_var)
+        sess.run(copy_var)
+
+        # old_var_value = sess.run(old_var)
+        # updated_new_var_value = sess.run(new_var)
+        # print("old value:\n" + str(old_var_value))
+        # print("updated new var value:\n" + str(updated_new_var_value))
 
 def retrain_and_save(env,
                      q_func,
@@ -915,7 +938,6 @@ def retrain_and_save(env,
                      ep_mean_length=100,
                      scope_old="deepq_train",
                      scope_new="deepq_train_retrained",
-                     act_old=None,
                      path_for_save=None):
     """Train a deepq model.
 
@@ -1031,14 +1053,14 @@ def retrain_and_save(env,
     # Initialize the parameters and copy them to the target network.
     U.initialize()
 
-    # TODO here:
     # overwrite q_func values
-    # with values from the inner "q_func_old" of act_old,
+    # with values from the inner "q_func_old" of old network,
     # where q_func is a lambda around a network with fully_connected() and relu() parts.
     # q_func_old has scope of scope_old, and q_func has scope of scope_new.
 
-    print_debug_info(scope_old, scope_new, sess)
-    print_old_and_new_weights(scope_old, scope_new, sess)
+    # print_debug_info(scope_old, scope_new, sess)
+    overwrite_new_net_with_old(scope_old, scope_new, sess)
+    # print_old_and_new_weights(scope_old, scope_new, sess)
 
     update_target()
 
