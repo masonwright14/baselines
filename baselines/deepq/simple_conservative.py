@@ -976,14 +976,6 @@ def retrain_and_save(env,
     def make_obs_ph(name):
         return U.BatchInput(observation_space_shape, name=name)
 
-    # TODO here:
-    # overwrite q_func values
-    # with values from the inner "q_func_old" of act_old,
-    # where q_func is a lambda around a network with fully_connected() and relu() parts.
-    # q_func_old has scope of scope_old, and q_func has scope of scope_new.
-
-    print_debug_info(scope_old, scope_new, sess)
-
     act, train, update_target, _ = deepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
@@ -1021,6 +1013,15 @@ def retrain_and_save(env,
 
     # Initialize the parameters and copy them to the target network.
     U.initialize()
+
+    # TODO here:
+    # overwrite q_func values
+    # with values from the inner "q_func_old" of act_old,
+    # where q_func is a lambda around a network with fully_connected() and relu() parts.
+    # q_func_old has scope of scope_old, and q_func has scope of scope_new.
+
+    print_debug_info(scope_old, scope_new, sess)
+
     update_target()
 
     # for var in tf.trainable_variables():
