@@ -853,6 +853,27 @@ def learn_and_save(env,
         act.save_with_sess(sess, path=path_for_save)
     return act
 
+def print_debug_info(scope_old, scope_new, sess):
+    vars_in_scope_old = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope_old)
+    print("Variables in scope: " + scope_old)
+    for v in vars_in_scope_old:
+        print(v)
+
+    vars_in_scope_new = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope_new)
+    print("\nVariables in scope: " + scope_new)
+    for v in vars_in_scope_new:
+        print(v)
+
+    global_vars = sess.run(tf.global_variables())
+    print("\nGlobal variables:")
+    for v in global_vars:
+        print(v)
+
+    trainables = sess.run(tf.trainable_variables())
+    print("\nTrainable variables:")
+    for v in trainables:
+        print(v)
+
 def retrain_and_save(env,
                      q_func,
                      lr=5e-4,
@@ -954,6 +975,14 @@ def retrain_and_save(env,
     observation_space_shape = env.observation_space.shape
     def make_obs_ph(name):
         return U.BatchInput(observation_space_shape, name=name)
+
+    # TODO here:
+    # overwrite q_func values
+    # with values from the inner "q_func_old" of act_old,
+    # where q_func is a lambda around a network with fully_connected() and relu() parts.
+    # q_func_old has scope of scope_old, and q_func has scope of scope_new.
+
+    print_debug_info(scope_old, scope_new, sess)
 
     act, train, update_target, _ = deepq.build_train(
         make_obs_ph=make_obs_ph,
