@@ -864,11 +864,6 @@ def print_debug_info(scope_old, scope_new, sess):
     for v in vars_in_scope_new:
         print(v)
 
-    global_vars = sess.run(tf.global_variables())
-    print("\nGlobal variables:")
-    for v in global_vars:
-        print(v)
-
     trainables = sess.run(tf.trainable_variables())
     print("\nTrainable variables:")
     for v in trainables:
