@@ -938,7 +938,8 @@ def retrain_and_save(env,
                      ep_mean_length=100,
                      scope_old="deepq_train",
                      scope_new="deepq_train_retrained",
-                     path_for_save=None):
+                     path_for_save=None,
+                     save_count=4):
     """Train a deepq model.
 
     Parameters
@@ -1006,6 +1007,9 @@ def retrain_and_save(env,
     """
     # Create all the functions necessary to train the model
 
+    if save_count < 1:
+        raise ValueError("save_count must be positive")
+
     sess = tf.Session()
     sess.__enter__()
 
@@ -1071,6 +1075,7 @@ def retrain_and_save(env,
     saved_mean_reward = None
     obs = env.reset()
     reset = True
+    save_iter = 1
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
         model_file = os.path.join(td, "model")
@@ -1164,6 +1169,10 @@ def retrain_and_save(env,
             with sess.as_default():
                 # print("Loading old state")
                 U.load_state(model_file)
+        if t > save_iter * (max_timesteps / save_count):
+            cur_save_path = path_for_save + "_r" + str(save_iter)
+            act.save_with_sess(sess, path=cur_save_path)
+            save_iter += 1
 
     # for var in tf.global_variables():
     #     print('all variables: ' + var.op.name)
@@ -1171,5 +1180,6 @@ def retrain_and_save(env,
     #     print('normal variable: ' + var.op.name)
 
     if path_for_save is not None:
-        act.save_with_sess(sess, path=path_for_save)
+        cur_save_path = path_for_save + "_r" + str(save_count)
+        act.save_with_sess(sess, path=cur_save_path)
     return act
