@@ -869,6 +869,28 @@ def print_debug_info(scope_old, scope_new, sess):
     for v in trainables:
         print(v)
 
+def print_old_and_new_weights(scope_old, scope_new, sess):
+    old_weights_name = scope_old + "/q_func/fully_connected/weights:0"
+    old_weights = [v for v in tf.global_variables() if v.name == old_weights_name][0]
+    print("old weights:")
+    print(old_weights)
+    old_value = sess.run(old_weights)
+    print(old_value)
+
+    new_weights_name = scope_new + "/q_func/fully_connected/weights:0"
+    new_weights = [v for v in tf.global_variables() if v.name == new_weights_name][0]
+    print("new weights:")
+    print(new_weights)
+    new_value = sess.run(new_weights)
+    print(new_value)
+
+    copy_into_new_weights = new_weights.assign(old_weights)
+    sess.run(copy_into_new_weights)
+
+    new_value_updated = sess.run(new_weights)
+    print("updated value of new weights:")
+    print(new_value_updated)
+
 def retrain_and_save(env,
                      q_func,
                      lr=5e-4,
@@ -1016,6 +1038,7 @@ def retrain_and_save(env,
     # q_func_old has scope of scope_old, and q_func has scope of scope_new.
 
     print_debug_info(scope_old, scope_new, sess)
+    print_old_and_new_weights(scope_old, scope_new, sess)
 
     update_target()
 
