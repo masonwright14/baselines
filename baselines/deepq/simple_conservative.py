@@ -919,8 +919,9 @@ def retrain_and_save(env,
                      lr=5e-4,
                      max_timesteps=100000,
                      buffer_size=50000,
-                     exploration_fraction=0.1,
-                     exploration_final_eps=0.02,
+                     exploration_fraction=0.5,
+                     exploration_initial_eps=0.3,
+                     exploration_final_eps=0.03,
                      train_freq=1,
                      batch_size=32,
                      print_freq=100,
@@ -938,7 +939,7 @@ def retrain_and_save(env,
                      ep_mean_length=100,
                      scope_old="deepq_train",
                      scope_new="deepq_train_retrained",
-                     path_for_save=None,
+                     prefix_for_save=None,
                      save_count=4):
     """Train a deepq model.
 
@@ -1049,9 +1050,9 @@ def retrain_and_save(env,
     else:
         replay_buffer = ReplayBuffer(buffer_size)
         beta_schedule = None
-    # Create the schedule for exploration starting from 1.
+    # Create the schedule for exploration starting from exploration_initial_eps.
     exploration = LinearSchedule(schedule_timesteps=int(exploration_fraction * max_timesteps),
-                                 initial_p=1.0,
+                                 initial_p=exploration_initial_eps,
                                  final_p=exploration_final_eps)
 
     # Initialize the parameters and copy them to the target network.
@@ -1170,7 +1171,7 @@ def retrain_and_save(env,
                 # print("Loading old state")
                 U.load_state(model_file)
         if t > save_iter * (max_timesteps / save_count):
-            cur_save_path = path_for_save + "_r" + str(save_iter)
+            cur_save_path = prefix_for_save + "_r" + str(save_iter) + ".pkl"
             act.save_with_sess(sess, path=cur_save_path)
             save_iter += 1
 
@@ -1179,7 +1180,7 @@ def retrain_and_save(env,
     # for var in tf.trainable_variables():
     #     print('normal variable: ' + var.op.name)
 
-    if path_for_save is not None:
-        cur_save_path = path_for_save + "_r" + str(save_count)
+    if prefix_for_save is not None:
+        cur_save_path = prefix_for_save + "_r" + str(save_count) + ".pkl"
         act.save_with_sess(sess, path=cur_save_path)
     return act
