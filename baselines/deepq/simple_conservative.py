@@ -1164,16 +1164,17 @@ def retrain_and_save(env,
                         U.save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_ep_reward
+            if t > save_iter * (max_timesteps / save_count):
+                cur_save_path = prefix_for_save + "_r" + str(save_iter) + ".pkl"
+                act.save_with_sess(sess, path=cur_save_path)
+                save_iter += 1
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
             with sess.as_default():
                 # print("Loading old state")
                 U.load_state(model_file)
-        if t > save_iter * (max_timesteps / save_count):
-            cur_save_path = prefix_for_save + "_r" + str(save_iter) + ".pkl"
-            act.save_with_sess(sess, path=cur_save_path)
-            save_iter += 1
+
 
     # for var in tf.global_variables():
     #     print('all variables: ' + var.op.name)
