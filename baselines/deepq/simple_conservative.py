@@ -893,6 +893,7 @@ def print_old_and_new_weights(scope_old, scope_new, sess):
 
 def overwrite_new_net_with_old(scope_old, scope_new, sess):
     net_name_suffixes = [
+        "eps:0",
         "/q_func/fully_connected/weights:0",
         "/q_func/fully_connected/biases:0",
         "/q_func/fully_connected_1/weights:0",
@@ -909,10 +910,11 @@ def overwrite_new_net_with_old(scope_old, scope_new, sess):
         copy_var = new_var.assign(old_var)
         sess.run(copy_var)
 
-        # old_var_value = sess.run(old_var)
-        # updated_new_var_value = sess.run(new_var)
-        # print("old value:\n" + str(old_var_value))
-        # print("updated new var value:\n" + str(updated_new_var_value))
+        old_var_value = sess.run(old_var)
+        updated_new_var_value = sess.run(new_var)
+        if old_var_value != updated_new_var_value:
+            raise ValueError("Not equal: " + str(old_var_value) + "\n" + \
+                str(updated_new_var_value))
 
 def retrain_and_save(env,
                      q_func,
