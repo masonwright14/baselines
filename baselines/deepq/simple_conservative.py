@@ -1432,10 +1432,12 @@ def learn_retrain_and_save(env,
                 obs = env.reset()
                 reset = True
                 # save current network
+                print("saving: " + path_for_save)
                 act.save_with_sess(sess, path=path_for_save)
-            elif t > max_timesteps_init and (t - max_timesteps_init) % (max_timesteps_retrain / retrain_save_count) == 0:
+            elif t > max_timesteps_init and (t - max_timesteps_init) % (max_timesteps_retrain // retrain_save_count) == 0:
                 # save current network under new name
-                save_iter = (t - max_timesteps_init) / (max_timesteps_retrain / retrain_save_count)
+                save_iter = (t - max_timesteps_init) // (max_timesteps_retrain // retrain_save_count)
                 cur_save_path = prefix_for_save + "_r" + str(save_iter) + ".pkl"
+                print("saving from retrain: " + cur_save_path)
                 act.save_with_sess(sess, path=cur_save_path)
     return act
