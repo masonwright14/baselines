@@ -1422,6 +1422,9 @@ def learn_retrain_and_save(env,
                         U.save_state(model_file)
                     saved_mean_reward = mean_ep_reward
             if t == max_timesteps_init:
+                # save current network
+                print("saving: " + path_for_save)
+                act.save_with_sess(sess, path=path_for_save)
                 # change exploration curve
                 exploration = LinearSchedule(schedule_timesteps=int(exploration_fraction * max_timesteps_retrain),
                                  initial_p=retrain_exploration_initial_eps,
@@ -1431,9 +1434,6 @@ def learn_retrain_and_save(env,
                 # reset state as if new game
                 obs = env.reset()
                 reset = True
-                # save current network
-                print("saving: " + path_for_save)
-                act.save_with_sess(sess, path=path_for_save)
             elif t > max_timesteps_init and (t - max_timesteps_init) % (max_timesteps_retrain // retrain_save_count) == 0:
                 # save current network under new name
                 save_iter = (t - max_timesteps_init) // (max_timesteps_retrain // retrain_save_count)
